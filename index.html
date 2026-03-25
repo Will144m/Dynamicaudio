@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic Audio demo</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="card">
+        <h1>Dynamic Audio demo</h1>
+        <p class="intro">
+          Upload an audio file, view its waveform, then click anywhere on the waveform
+          to jump to that moment. Demo fragments are generated automatically and can
+          also be clicked to play small sections.
+        </p>
+
+        <div class="toolbar">
+          <label class="upload">
+            <span>Choose audio</span>
+            <input id="audioFile" type="file" accept="audio/*" />
+          </label>
+
+          <button id="playPauseBtn" type="button" disabled>Play</button>
+          <button id="stopBtn" type="button" disabled>Stop</button>
+        </div>
+
+        <div class="status-row">
+          <p id="status">Load an audio file to begin.</p>
+          <p id="time">00:00 / 00:00</p>
+        </div>
+
+        <div id="waveform" aria-label="Audio waveform"></div>
+
+        <div class="fragments-section">
+          <div class="fragments-header">
+            <h2>Fragments</h2>
+            <button id="regenFragmentsBtn" type="button" disabled>
+              Rebuild fragments
+            </button>
+          </div>
+          <p class="hint">
+            Click a fragment chip below or click directly on a region inside the waveform.
+          </p>
+          <div id="fragments" class="fragments"></div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
