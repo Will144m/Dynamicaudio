@@ -95,6 +95,7 @@ button {
 }
 
 button#stopBtn,
+button#loopToggleBtn,
 button#regenFragmentsBtn {
   background: #cbd5e1;
   color: #0f172a;

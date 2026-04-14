@@ -4,6 +4,7 @@ import RegionsPlugin from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plu
 const fileInput = document.getElementById('audioFile')
 const playPauseBtn = document.getElementById('playPauseBtn')
 const stopBtn = document.getElementById('stopBtn')
+const loopToggleBtn = document.getElementById('loopToggleBtn')
 const regenFragmentsBtn = document.getElementById('regenFragmentsBtn')
 const statusEl = document.getElementById('status')
 const timeEl = document.getElementById('time')
@@ -26,6 +27,10 @@ const wavesurfer = WaveSurfer.create({
 const regions = wavesurfer.registerPlugin(RegionsPlugin.create())
 const regionMap = new Map()
 
+let selectedRegion = null
+let loopRegion = null
+let isLooping = false
+
 function formatTime(seconds) {
     const safeSeconds = Math.max(0, Math.floor(seconds || 0))
     const mins = Math.floor(safeSeconds / 60)
@@ -37,7 +42,31 @@ function updateTimeDisplay(currentTime = 0) {
     timeEl.textContent = `${formatTime(currentTime)} / ${formatTime(wavesurfer.getDuration())}`
 }
 
+function updateLoopButton() {
+    loopToggleBtn.disabled = !selectedRegion
+    loopToggleBtn.textContent = isLooping ? 'Looping selected fragment' : 'Loop selected fragment'
+}
+
+function clearLoop() {
+    isLooping = false
+    loopRegion = null
+    updateLoopButton()
+}
+
+function setSelectedRegion(region) {
+    selectedRegion = region || null
+
+    if (isLooping && loopRegion && selectedRegion?.id !== loopRegion.id) {
+        clearLoop()
+    }
+
+    updateLoopButton()
+}
+
 function clearFragments() {
+    clearLoop()
+    setSelectedRegion(null)
+
     for (const region of regionMap.values()) {
         region.remove()
     }
@@ -51,11 +80,23 @@ function highlightFragment(id) {
     })
 }
 
+function replayLoopRegion() {
+    if (!isLooping || !loopRegion) return
+
+    highlightFragment(loopRegion.id)
+    wavesurfer.play(loopRegion.start, loopRegion.end)
+    statusEl.textContent = `Looping fragment: ${loopRegion.id}`
+}
+
 function playFragment(region) {
     if (!region) return
-        highlightFragment(region.id)
-        wavesurfer.play(region.start, region.end)
-        statusEl.textContent = `Playing fragment: ${region.id}`
+
+    setSelectedRegion(region)
+    highlightFragment(region.id)
+    wavesurfer.play(region.start, region.end)
+    statusEl.textContent = isLooping && loopRegion?.id === region.id
+        ? `Looping fragment: ${region.id}`
+        : `Playing fragment: ${region.id}`
 }
 
 function addFragment(id, start, end, color) {
@@ -105,18 +146,18 @@ fileInput.addEventListener('change', async (event) => {
     const [file] = event.target.files
     if (!file) return
 
-        clearFragments()
-        statusEl.textContent = `Loading: ${file.name}`
-        playPauseBtn.disabled = true
-        stopBtn.disabled = true
-        regenFragmentsBtn.disabled = true
+    clearFragments()
+    statusEl.textContent = `Loading: ${file.name}`
+    playPauseBtn.disabled = true
+    stopBtn.disabled = true
+    regenFragmentsBtn.disabled = true
 
-        try {
-            await wavesurfer.loadBlob(file)
-        } catch (error) {
-            console.error(error)
-            statusEl.textContent = 'Could not load that audio file.'
-        }
+    try {
+        await wavesurfer.loadBlob(file)
+    } catch (error) {
+        console.error(error)
+        statusEl.textContent = 'Could not load that audio file.'
+    }
 })
 
 playPauseBtn.addEventListener('click', async () => {
@@ -127,8 +168,24 @@ stopBtn.addEventListener('click', () => {
     wavesurfer.pause()
     wavesurfer.seekTo(0)
     updateTimeDisplay(0)
+    clearLoop()
     statusEl.textContent = 'Stopped.'
     highlightFragment('')
+})
+
+loopToggleBtn.addEventListener('click', () => {
+    if (!selectedRegion) return
+
+    const isSameRegion = loopRegion?.id === selectedRegion.id
+    isLooping = !(isLooping && isSameRegion)
+    loopRegion = isLooping ? selectedRegion : null
+    updateLoopButton()
+
+    if (isLooping) {
+        statusEl.textContent = `Loop armed for fragment: ${selectedRegion.id}`
+    } else {
+        statusEl.textContent = `Loop disabled for fragment: ${selectedRegion.id}`
+    }
 })
 
 regenFragmentsBtn.addEventListener('click', () => {
@@ -166,7 +223,17 @@ wavesurfer.on('finish', () => {
 })
 
 wavesurfer.on('interaction', () => {
+    clearLoop()
     wavesurfer.play()
     statusEl.textContent = 'Seeking to selected point...'
     highlightFragment('')
 })
+
+regions.on('region-out', (region) => {
+    if (!isLooping || !loopRegion) return
+    if (region.id !== loopRegion.id) return
+
+    replayLoopRegion()
+})
+
+updateLoopButton()
