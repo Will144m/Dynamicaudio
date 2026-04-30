@@ -12,8 +12,8 @@
         <h1>Dynamic Audio demo</h1>
         <p class="intro">
           Upload an audio file, view its waveform, then click anywhere on the waveform
-          to jump to that moment. Demo fragments are generated automatically and can
-          also be clicked to play small sections.
+          to jump to that moment. Fragments can be played, looped, moved, resized,
+          deleted, or created visually.
         </p>
 
         <div class="toolbar">
@@ -24,7 +24,9 @@
 
           <button id="playPauseBtn" type="button" disabled>Play</button>
           <button id="stopBtn" type="button" disabled>Stop</button>
-          <button id="loopToggleBtn" type="button" disabled>Loop selected fragment</button>
+          <button id="loopToggleBtn" type="button" disabled>
+            Loop current fragment: Off
+          </button>
         </div>
 
         <div class="status-row">
@@ -37,13 +39,22 @@
         <div class="fragments-section">
           <div class="fragments-header">
             <h2>Fragments</h2>
-            <button id="regenFragmentsBtn" type="button" disabled>
-              Rebuild fragments
-            </button>
+
+            <div class="fragments-actions">
+              <button id="addFragmentBtn" type="button" disabled>
+                Add fragment at playhead
+              </button>
+
+              <button id="deleteFragmentBtn" type="button" disabled>
+                Delete selected
+              </button>
+
+              <button id="regenFragmentsBtn" type="button" disabled>
+                Rebuild demo fragments
+              </button>
+            </div>
           </div>
-          <p class="hint">
-            Click a fragment chip below or click directly on a region inside the waveform.
-          </p>
+
           <div id="fragments" class="fragments"></div>
         </div>
       </section>

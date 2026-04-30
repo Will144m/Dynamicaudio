@@ -7,6 +7,7 @@
   --border: #334155;
   --accent: #38bdf8;
   --accent-2: #22c55e;
+  --danger: #fb7185;
 }
 
 * {
@@ -17,7 +18,7 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  "Segoe UI", sans-serif;
   background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
   color: var(--text);
 }
@@ -52,12 +53,13 @@ h2 {
 .intro,
 .hint,
 #status {
-  color: var(--muted);
+color: var(--muted);
 }
 
 .toolbar,
 .fragments-header,
-.status-row {
+.status-row,
+.fragments-actions {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -67,6 +69,10 @@ h2 {
 
 .toolbar {
   margin: 22px 0 14px;
+}
+
+.fragments-actions {
+  justify-content: flex-end;
 }
 
 .upload {
@@ -96,9 +102,16 @@ button {
 
 button#stopBtn,
 button#loopToggleBtn,
-button#regenFragmentsBtn {
+button#regenFragmentsBtn,
+button#addFragmentBtn {
   background: #cbd5e1;
   color: #0f172a;
+}
+
+button#deleteFragmentBtn {
+  background: rgba(251, 113, 133, 0.18);
+  color: #fecdd3;
+  border: 1px solid rgba(251, 113, 133, 0.35);
 }
 
 button:disabled {
@@ -107,11 +120,25 @@ button:disabled {
 }
 
 #waveform {
-  margin-top: 14px;
-  background: #0b1220;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 14px;
+margin-top: 14px;
+background: #0b1220;
+border: 1px solid var(--border);
+border-radius: 16px;
+padding: 14px;
+}
+
+/*
+ * WaveSurfer v7 renders into Shadow DOM.
+ * ::part(region) works for the region overlay itself.
+ * Handle styling depends a bit on the exact generated part names,
+ * so the most reliable visual feedback still comes from enabling resize.
+ */
+#waveform ::part(region) {
+cursor: grab;
+}
+
+#waveform ::part(region):active {
+cursor: grabbing;
 }
 
 .fragments-section {
@@ -152,7 +179,8 @@ button:disabled {
     padding: 20px;
   }
 
-  .toolbar {
+  .toolbar,
+  .fragments-actions {
     align-items: stretch;
   }
 
@@ -160,5 +188,9 @@ button:disabled {
   button {
     width: 100%;
     justify-content: center;
+  }
+
+  .fragments-actions {
+    width: 100%;
   }
 }
