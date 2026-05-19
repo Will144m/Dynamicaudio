@@ -6,15 +6,27 @@
     <title>Dynamic Audio demo</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body data-mode="editor">
     <main class="app">
       <section class="card">
-        <h1>Dynamic Audio demo</h1>
-        <p class="intro">
-          Upload an audio file, view its waveform, then click anywhere on the waveform
-          to jump to that moment. Fragments can be played, looped, moved, resized,
-          deleted, or created visually.
-        </p>
+        <header class="app-header">
+          <div>
+            <h1>Dynamic Audio demo</h1>
+            <p class="intro">
+              Upload an audio file, create fragments, then export a project bundle
+              containing both the audio and fragment data.
+            </p>
+          </div>
+
+          <div class="mode-switch" aria-label="App mode">
+            <button id="editorModeBtn" class="mode-button active" type="button">
+              Editor
+            </button>
+            <button id="playerModeBtn" class="mode-button" type="button">
+              Player
+            </button>
+          </div>
+        </header>
 
         <div class="toolbar">
           <label class="upload">
@@ -30,8 +42,8 @@
         </div>
 
         <div class="status-row">
-          <p id="status">Load an audio file to begin.</p>
-          <p id="time">00:00 / 00:00</p>
+          <p id="status">Load an audio file or import a project bundle to begin.</p>
+          <p id="time">00:00.00 / 00:00.00</p>
         </div>
 
         <div id="waveform" aria-label="Audio waveform"></div>
@@ -41,17 +53,26 @@
             <h2>Fragments</h2>
 
             <div class="fragments-actions">
-              <button id="addFragmentBtn" type="button" disabled>
+              <button id="addFragmentBtn" class="editor-only" type="button" disabled>
                 Add fragment
               </button>
 
-              <button id="deleteFragmentBtn" type="button" disabled>
+              <button id="deleteFragmentBtn" class="editor-only" type="button" disabled>
                 Delete selected
               </button>
 
-              <button id="regenFragmentsBtn" type="button" disabled>
-                Rebuild demo fragments
+              <button id="exportProjectBtn" type="button" disabled>
+                Export project bundle
               </button>
+
+              <label class="project-import">
+                <span>Import project bundle</span>
+                <input
+                  id="projectFile"
+                  type="file"
+                  accept=".dynamic-audio.zip,.zip,application/zip,application/x-zip-compressed"
+                />
+              </label>
             </div>
           </div>
 
@@ -60,6 +81,7 @@
       </section>
     </main>
 
-    <script type="module" src="app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script type="module" src="src/main.js"></script>
   </body>
 </html>
