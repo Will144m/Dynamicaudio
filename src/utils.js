@@ -13,6 +13,54 @@ export function formatTime(seconds) {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`
 }
 
+export function parseTimeInput(value) {
+  const text = String(value || '').trim().replace(',', '.')
+
+  if (!text) {
+    return Number.NaN
+  }
+
+  const parts = text.split(':').map((part) => part.trim())
+
+  if (parts.some((part) => part === '')) {
+    return Number.NaN
+  }
+
+  if (parts.length === 1) {
+    const seconds = Number(parts[0])
+    return Number.isFinite(seconds) ? seconds : Number.NaN
+  }
+
+  if (parts.length === 2) {
+    const minutes = Number(parts[0])
+    const seconds = Number(parts[1])
+
+    if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) {
+      return Number.NaN
+    }
+
+    return minutes * 60 + seconds
+  }
+
+  if (parts.length === 3) {
+    const hours = Number(parts[0])
+    const minutes = Number(parts[1])
+    const seconds = Number(parts[2])
+
+    if (
+      !Number.isFinite(hours) ||
+      !Number.isFinite(minutes) ||
+      !Number.isFinite(seconds)
+    ) {
+      return Number.NaN
+    }
+
+    return hours * 3600 + minutes * 60 + seconds
+  }
+
+  return Number.NaN
+}
+
 export function formatRange(fragment) {
   return `${formatTime(fragment.start)}-${formatTime(fragment.end)}`
 }

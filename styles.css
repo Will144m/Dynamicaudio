@@ -24,7 +24,7 @@ body {
 }
 
 .app {
-  width: min(980px, calc(100% - 32px));
+  width: min(1040px, calc(100% - 32px));
   margin: 48px auto;
 }
 
@@ -41,7 +41,8 @@ body {
 .fragments-header,
 .status-row,
 .fragments-actions,
-.mode-switch {
+.mode-switch,
+.fragment-details-header {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -120,7 +121,6 @@ button {
 
 button#stopBtn,
 button#loopToggleBtn,
-button#regenFragmentsBtn,
 button#addFragmentBtn,
 button#exportProjectBtn,
 .mode-button {
@@ -169,40 +169,6 @@ border-radius: 16px;
 padding: 14px;
 }
 
-.region-time-tooltip {
-  position: absolute;
-  z-index: 20;
-  transform: translateX(-50%);
-  pointer-events: none;
-  padding: 6px 9px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.96);
-  color: #e0f2fe;
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1;
-  white-space: nowrap;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
-}
-
-.region-time-tooltip::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -5px;
-  width: 8px;
-  height: 8px;
-  transform: translateX(-50%) rotate(45deg);
-  background: rgba(15, 23, 42, 0.96);
-  border-right: 1px solid rgba(148, 163, 184, 0.28);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
-}
-
-/*
- * WaveSurfer v7 renders into Shadow DOM.
- * ::part(region) works for the region overlay itself.
- */
 #waveform ::part(region) {
 cursor: grab;
 }
@@ -213,6 +179,102 @@ cursor: grabbing;
 
 body[data-mode="player"] #waveform ::part(region) {
   cursor: pointer;
+}
+
+.fragment-details {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.58);
+  transition:
+  opacity 140ms ease,
+  border-color 140ms ease,
+  background-color 140ms ease;
+}
+
+.fragment-details.is-disabled {
+  opacity: 0.58;
+  background: rgba(15, 23, 42, 0.34);
+}
+
+.fragment-details-grid {
+  display: grid;
+  grid-template-columns:
+  minmax(180px, 1.4fr)
+  minmax(120px, 0.9fr)
+  minmax(120px, 0.9fr)
+  minmax(100px, 0.7fr)
+  minmax(150px, 0.9fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.fragment-details label,
+.fragment-length,
+.fragment-mode-toggle {
+  display: grid;
+  gap: 6px;
+}
+
+.fragment-details label span,
+.fragment-length span,
+.fragment-mode-toggle > span:first-child {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.fragment-details input[type="text"] {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: rgba(2, 6, 23, 0.8);
+  color: var(--text);
+  font: inherit;
+}
+
+.fragment-details input:disabled {
+  color: rgba(229, 231, 235, 0.5);
+  cursor: not-allowed;
+}
+
+.fragment-details input[type="text"]:focus {
+  outline: 2px solid rgba(56, 189, 248, 0.38);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.fragment-details input.is-invalid {
+  border-color: rgba(251, 113, 133, 0.76);
+  outline-color: rgba(251, 113, 133, 0.34);
+}
+
+.fragment-length strong,
+.toggle-row {
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: rgba(2, 6, 23, 0.46);
+}
+
+.fragment-length strong {
+  color: #bae6fd;
+}
+
+.toggle-row {
+  gap: 9px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.toggle-row input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent-2);
 }
 
 .fragments-section {
@@ -248,6 +310,12 @@ body[data-mode="player"] #waveform ::part(region) {
   margin-left: 6px;
 }
 
+@media (max-width: 920px) {
+  .fragment-details-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .card {
     padding: 20px;
@@ -256,7 +324,8 @@ body[data-mode="player"] #waveform ::part(region) {
   .toolbar,
   .fragments-actions,
   .mode-switch,
-  .app-header {
+  .app-header,
+  .fragment-details-header {
     align-items: stretch;
   }
 
@@ -270,5 +339,9 @@ body[data-mode="player"] #waveform ::part(region) {
   .fragments-actions,
   .mode-switch {
     width: 100%;
+  }
+
+  .fragment-details-grid {
+    grid-template-columns: 1fr;
   }
 }

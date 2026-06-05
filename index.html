@@ -48,6 +48,60 @@
 
         <div id="waveform" aria-label="Audio waveform"></div>
 
+        <section id="fragmentDetails" class="fragment-details editor-only is-disabled">
+          <div class="fragment-details-header">
+            <div>
+              <h2>Selected fragment</h2>
+              <p class="hint">Select a fragment to edit its name and exact timing.</p>
+            </div>
+          </div>
+
+          <div class="fragment-details-grid">
+            <label>
+              <span>Name</span>
+              <input id="fragmentNameInput" type="text" autocomplete="off" disabled />
+            </label>
+
+            <label>
+              <span>Start</span>
+              <input
+                id="fragmentStartInput"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                placeholder="00:00.00"
+                disabled
+              />
+            </label>
+
+            <label>
+              <span>End</span>
+              <input
+                id="fragmentEndInput"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                placeholder="00:00.00"
+                disabled
+              />
+            </label>
+
+            <div class="fragment-length">
+              <span>Length</span>
+              <strong id="fragmentLengthValue">--</strong>
+            </div>
+
+            <label class="fragment-mode-toggle">
+              <span>Playback</span>
+
+              <span class="toggle-row">
+                <input id="fragmentLoopModeInput" type="checkbox" disabled />
+                <span>Loop fragment</span>
+              </span>
+            </label>
+          </div>
+        </section>
+
         <div class="fragments-section">
           <div class="fragments-header">
             <h2>Fragments</h2>

@@ -1,7 +1,8 @@
 import { FRAGMENT_COLORS } from './config.js'
+import { normalizePlaybackMode } from './fragments.js'
 import { downloadBlob } from './utils.js'
 
-const PROJECT_VERSION = 2
+const PROJECT_VERSION = 3
 const PROJECT_JSON_PATH = 'project.json'
 const AUDIO_FOLDER = 'audio'
 
@@ -62,6 +63,7 @@ export function buildProjectDocument(state, { audioPath }) {
       start: fragment.start,
       end: fragment.end,
       color: fragment.color,
+      playbackMode: normalizePlaybackMode(fragment.playbackMode),
     })),
   }
 }
@@ -212,5 +214,6 @@ function normalizeImportedFragment(fragment, index) {
       start,
       end,
       color: String(fragment.color || FRAGMENT_COLORS[index % FRAGMENT_COLORS.length]),
+      playbackMode: normalizePlaybackMode(fragment.playbackMode),
     }
 }

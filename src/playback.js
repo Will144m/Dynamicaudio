@@ -49,13 +49,19 @@ export function playFragment(state, waveform, fragment, startTime = fragment.sta
 }
 
 export function stopPlayback(state, waveform) {
-  waveform.pause()
-  waveform.seekTo(0)
+  const wasLooping = state.isLooping
+
+  // Clear the selected fragment before seeking away.
+  // Otherwise WaveSurfer can emit region-out while looping is still on,
+  // which immediately restarts the selected fragment.
   state.selectedFragmentId = null
 
-  return state.isLooping
-    ? 'Stopped. Looping is still on for the whole file.'
-    : 'Stopped.'
+  waveform.pause()
+  waveform.seekTo(0)
+
+  return wasLooping
+  ? 'Stopped. Looping is still on for the whole file.'
+  : 'Stopped.'
 }
 
 export function toggleLoop(state) {

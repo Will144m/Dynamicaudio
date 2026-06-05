@@ -2,7 +2,7 @@ import WaveSurfer from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/wavesu
 import RegionsPlugin from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/regions.esm.js'
 
 import { MIN_FRAGMENT_LENGTH, USER_FRAGMENT_COLOR } from './config.js'
-import { clamp, formatTime } from './utils.js'
+import { clamp, formatRange, formatTime } from './utils.js'
 
 export function createWaveform({ container, callbacks = {} }) {
   const wavesurfer = WaveSurfer.create({
@@ -21,6 +21,7 @@ export function createWaveform({ container, callbacks = {} }) {
 
   const regions = wavesurfer.registerPlugin(RegionsPlugin.create())
   const regionById = new Map()
+  const labelByRegionId = new Map()
 
   const containerEl = typeof container === 'string'
   ? document.querySelector(container)
@@ -59,6 +60,9 @@ export function createWaveform({ container, callbacks = {} }) {
   let latestPointerEvent = null
   let previewAnimationFrame = null
   let hideRegionTimeTooltipTimer = null
+
+  let labelRenderFrame = null
+  let lastLabelFragments = []
 
   function getWaveformRectInfo() {
     if (!containerEl) {
@@ -273,6 +277,113 @@ export function createWaveform({ container, callbacks = {} }) {
     }, delay)
   }
 
+  function applyRegionLabelStyles(label, laneIndex) {
+    Object.assign(label.style, {
+      position: 'absolute',
+      left: '6px',
+      right: '6px',
+      top: `${6 + laneIndex * 22}px`,
+      zIndex: '12',
+      height: '18px',
+      lineHeight: '18px',
+      padding: '0 6px',
+      borderRadius: '999px',
+      background: 'rgba(15, 23, 42, 0.72)',
+                  color: '#e0f2fe',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+    })
+  }
+
+  function cancelScheduledLabelRender() {
+    if (labelRenderFrame !== null) {
+      window.cancelAnimationFrame(labelRenderFrame)
+      labelRenderFrame = null
+    }
+  }
+
+  function clearRegionLabels() {
+    for (const label of labelByRegionId.values()) {
+      label.remove()
+    }
+
+    labelByRegionId.clear()
+  }
+
+  function getRegionLabelLane(region, lanes) {
+    if (!region?.element) {
+      return null
+    }
+
+    const rect = region.element.getBoundingClientRect()
+    const minReadableWidth = 34
+    const laneGap = 8
+    const maxLanes = 5
+
+    if (rect.width < minReadableWidth) {
+      return null
+    }
+
+    for (let laneIndex = 0; laneIndex < lanes.length; laneIndex += 1) {
+      if (rect.left >= lanes[laneIndex] + laneGap) {
+        lanes[laneIndex] = rect.right
+        return laneIndex
+      }
+    }
+
+    if (lanes.length < maxLanes) {
+      lanes.push(rect.right)
+      return lanes.length - 1
+    }
+
+    return null
+  }
+
+  function renderFragmentLabels(fragments = lastLabelFragments) {
+    lastLabelFragments = Array.isArray(fragments) ? fragments : []
+
+    cancelScheduledLabelRender()
+
+    labelRenderFrame = window.requestAnimationFrame(() => {
+      labelRenderFrame = null
+      clearRegionLabels()
+
+      const lanes = []
+      const sortedFragments = [...lastLabelFragments].sort((a, b) => a.start - b.start)
+
+      for (const fragment of sortedFragments) {
+        const region = regionById.get(fragment.id)
+
+        if (!region?.element) {
+          continue
+        }
+
+        const laneIndex = getRegionLabelLane(region, lanes)
+
+        if (laneIndex === null) {
+          continue
+        }
+
+        const label = document.createElement('div')
+
+        label.className = 'waveform-region-label'
+        label.textContent = fragment.name
+        label.title = `${fragment.name} (${formatRange(fragment)})`
+
+        applyRegionLabelStyles(label, laneIndex)
+
+        region.element.appendChild(label)
+        labelByRegionId.set(fragment.id, label)
+      }
+    })
+  }
+
   function updatePointerPreview() {
     previewAnimationFrame = null
 
@@ -400,6 +511,8 @@ export function createWaveform({ container, callbacks = {} }) {
       })
 
       region.on('remove', () => {
+        labelByRegionId.get(region.id)?.remove()
+        labelByRegionId.delete(region.id)
         regionById.delete(region.id)
       })
   }
@@ -431,6 +544,8 @@ export function createWaveform({ container, callbacks = {} }) {
   function clearRegions() {
     stopPointerEdit()
     hideTooltip(0)
+    cancelScheduledLabelRender()
+    clearRegionLabels()
 
     for (const region of Array.from(regionById.values())) {
       region.remove()
@@ -459,6 +574,7 @@ export function createWaveform({ container, callbacks = {} }) {
     }
 
     isRenderingRegions = false
+    renderFragmentLabels(fragments)
     enableDragSelection()
   }
 
@@ -571,9 +687,11 @@ export function createWaveform({ container, callbacks = {} }) {
       stopPointerEdit()
       hideTooltip(0)
       enableDragSelection()
+      renderFragmentLabels()
     },
 
     renderFragments,
+    renderFragmentLabels,
     clearRegions,
 
     setRegionColor(id, color) {
@@ -586,6 +704,8 @@ export function createWaveform({ container, callbacks = {} }) {
         } else if (region.element) {
           region.element.style.backgroundColor = color
         }
+
+        renderFragmentLabels()
     },
   }
 }
