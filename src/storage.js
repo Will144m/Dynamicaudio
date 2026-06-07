@@ -1,3 +1,4 @@
+import JSZip from 'jszip'
 import { FRAGMENT_COLORS } from './config.js'
 import { normalizePlaybackMode } from './fragments.js'
 import { getAudioPathForTrack } from './tracks.js'
@@ -8,11 +9,7 @@ const PROJECT_JSON_PATH = 'project.json'
 const AUDIO_FOLDER = 'audio'
 
 function getJSZip() {
-  if (!globalThis.JSZip) {
-    throw new Error('JSZip is not loaded. Check the script tag in index.html.')
-  }
-
-  return globalThis.JSZip
+  return JSZip
 }
 
 function getBundleFilename(state) {

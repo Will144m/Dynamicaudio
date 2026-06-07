@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dynamicaudio</string>
+    <string name="title_activity_main">Dynamicaudio</string>
+    <string name="package_name">com.will144m.Dynamicaudio</string>
+    <string name="custom_url_scheme">com.will144m.Dynamicaudio</string>
+</resources>

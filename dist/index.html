@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic Audio demo</title>
+    <script type="module" crossorigin src="/assets/index-B6HK3S7a.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BDoMJJ2y.css">
+  </head>
+  <body data-mode="editor">
+    <main class="app">
+      <section class="card">
+        <header class="app-header">
+          <div>
+            <h1>Dynamic Audio demo</h1>
+            <p class="intro">
+              Add tracks, create fragments, then export a project bundle containing
+              the audio files and fragment data.
+            </p>
+          </div>
+
+          <div class="mode-switch" aria-label="App mode">
+            <button id="editorModeBtn" class="mode-button active" type="button">
+              Editor
+            </button>
+            <button id="playerModeBtn" class="mode-button" type="button">
+              Player
+            </button>
+          </div>
+        </header>
+
+        <div class="toolbar">
+          <label class="upload">
+            <span>Add track</span>
+            <input id="trackFile" type="file" accept="audio/*" multiple />
+          </label>
+
+          <button id="playPauseBtn" type="button" disabled>Play</button>
+          <button id="stopBtn" type="button" disabled>Stop</button>
+          <button id="loopToggleBtn" type="button" disabled>
+            Loop current fragment: Off
+          </button>
+
+          <label class="volume-control">
+            <span>Volume</span>
+            <input id="volumeInput" type="range" min="0" max="100" value="100" />
+          </label>
+
+          <label class="number-control player-only">
+            <span>Linked fade ms</span>
+            <input id="linkedCrossfadeInput" type="number" min="0" max="2000" step="25" value="250" />
+          </label>
+
+          <label class="number-control player-only">
+            <span>Linked offset ms</span>
+            <input id="linkedOffsetInput" type="number" min="-1000" max="1000" step="10" value="0" />
+          </label>
+
+          <label class="snap-control editor-only">
+            <input id="snapToggleInput" type="checkbox" />
+            <span>Snap fragments</span>
+          </label>
+        </div>
+
+        <div class="status-row">
+          <p id="status">Add a track or import a project bundle to begin.</p>
+          <p id="time">00:00.00 / 00:00.00</p>
+        </div>
+
+        <section class="tracks-section">
+          <div class="tracks-header">
+            <h2>Tracks</h2>
+            <div class="project-actions">
+              <button id="deleteTrackBtn" class="danger-action" type="button" disabled>
+                Delete selected track
+              </button>
+
+              <button id="exportProjectBtn" type="button" disabled>
+                Export project bundle
+              </button>
+
+              <label class="project-import">
+                <span>Import project bundle</span>
+                <input
+                  id="projectFile"
+                  type="file"
+                  accept=".dynamic-audio.zip,.zip,application/zip,application/x-zip-compressed"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div id="tracks" class="tracks"></div>
+        </section>
+
+        <div id="waveform" aria-label="Audio waveform"></div>
+
+        <section id="playerPanel" class="player-panel player-only">
+          <div class="player-panel-header">
+            <div>
+              <h2>Player queue</h2>
+              <p class="hint">Queue follows the active track. Next waits for the current loop to finish.</p>
+            </div>
+
+            <div class="player-actions">
+              <button id="startQueueBtn" type="button" disabled>Start queue</button>
+              <button id="nextQueueBtn" type="button" disabled>Queue next</button>
+              <button id="jumpQueueBtn" type="button" disabled>Skip now</button>
+              <button id="restartQueueBtn" type="button" disabled>Restart</button>
+              <button id="resetQueueBtn" type="button" disabled>Reset order</button>
+            </div>
+          </div>
+
+          <div class="player-status-grid">
+            <div>
+              <span>Current</span>
+              <strong id="playerCurrent">--</strong>
+            </div>
+            <div>
+              <span>Queued next</span>
+              <strong id="playerQueued">--</strong>
+            </div>
+          </div>
+
+          <div id="playerQueue" class="player-queue"></div>
+
+          <div id="playerAvailableQueue" class="available-queue"></div>
+
+          <div id="playerLinkedTargets" class="linked-targets"></div>
+        </section>
+
+        <section id="fragmentDetails" class="fragment-details editor-only is-disabled">
+          <div class="fragment-details-header">
+            <div>
+              <h2>Selected fragment</h2>
+              <p class="hint">Select a fragment to edit its name and exact timing.</p>
+            </div>
+          </div>
+
+          <div class="fragment-details-grid">
+            <label>
+              <span>Name</span>
+              <input id="fragmentNameInput" type="text" autocomplete="off" disabled />
+            </label>
+
+            <label>
+              <span>Start</span>
+              <input
+                id="fragmentStartInput"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                placeholder="00:00.00"
+                disabled
+              />
+            </label>
+
+            <label>
+              <span>End</span>
+              <input
+                id="fragmentEndInput"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                placeholder="00:00.00"
+                disabled
+              />
+            </label>
+
+            <div class="fragment-length">
+              <span>Length</span>
+              <strong id="fragmentLengthValue">--</strong>
+            </div>
+
+            <label class="fragment-mode-toggle">
+              <span>Playback</span>
+
+              <span class="toggle-row">
+                <input id="fragmentLoopModeInput" type="checkbox" disabled />
+                <span>Loop fragment</span>
+              </span>
+            </label>
+
+            <label class="fragment-link-control">
+              <span>Linked target</span>
+              <select id="fragmentLinkSelect" disabled>
+                <option value="">No linked fragment</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <div class="fragments-section">
+          <div class="fragments-header">
+            <h2>Fragments</h2>
+
+            <div class="fragments-actions">
+              <button id="addFragmentBtn" class="editor-only" type="button" disabled>
+                Add fragment
+              </button>
+
+              <button id="deleteFragmentBtn" class="editor-only" type="button" disabled>
+                Delete selected
+              </button>
+            </div>
+          </div>
+
+          <div id="fragments" class="fragments"></div>
+        </div>
+      </section>
+    </main>
+
+  </body>
+</html>
