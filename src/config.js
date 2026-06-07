@@ -1,5 +1,6 @@
 export const MIN_FRAGMENT_LENGTH = 0.25
 export const DEFAULT_FRAGMENT_LENGTH = 5
+export const SNAP_THRESHOLD_SECONDS = 0.12
 
 export const FRAGMENT_COLORS = [
   'rgba(56, 189, 248, 0.20)',

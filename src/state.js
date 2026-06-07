@@ -1,51 +1,101 @@
 export const state = {
-  hasLoadedAudio: false,
   mode: 'editor',
+  activeTrackId: null,
   selectedFragmentId: null,
   isLooping: false,
+  hasLoadedAudio: false,
   lastLoopRestartTime: 0,
   lastRegionCreatedAt: 0,
-
-  audio: {
-    file: null,
-    fileName: '',
-    fileType: '',
-    fileSize: 0,
-    lastModified: 0,
-    duration: 0,
-    objectUrl: null,
+  tracks: [],
+  editorSettings: {
+    snapEnabled: false,
   },
-
-  fragments: [],
+  playerSettings: {
+    volume: 1,
+    linkedFragmentCrossfadeMs: 250,
+    linkedFragmentOffsetMs: 0,
+  },
+  player: {
+    currentQueueIndex: null,
+    queuedQueueIndex: null,
+    advanceRequested: false,
+    lastHandledEndAt: 0,
+  },
 }
 
-export function resetLoadedAudioState() {
-  state.hasLoadedAudio = false
+export function resetPlaybackState() {
   state.selectedFragmentId = null
   state.isLooping = false
+  state.hasLoadedAudio = false
   state.lastLoopRestartTime = 0
   state.lastRegionCreatedAt = 0
-
-  state.audio.file = null
-  state.audio.fileName = ''
-  state.audio.fileType = ''
-  state.audio.fileSize = 0
-  state.audio.lastModified = 0
-  state.audio.duration = 0
+  state.player.currentQueueIndex = null
+  state.player.queuedQueueIndex = null
+  state.player.advanceRequested = false
+  state.player.lastHandledEndAt = 0
 }
 
-export function setAudioObjectUrl(url) {
-  if (state.audio.objectUrl) {
-    URL.revokeObjectURL(state.audio.objectUrl)
+export function clearTrackObjectUrls(tracks = state.tracks) {
+  for (const track of tracks) {
+    if (track.audio?.objectUrl) {
+      URL.revokeObjectURL(track.audio.objectUrl)
+      track.audio.objectUrl = null
+    }
   }
-
-  state.audio.objectUrl = url
 }
 
-export function clearAudioObjectUrl() {
-  if (state.audio.objectUrl) {
-    URL.revokeObjectURL(state.audio.objectUrl)
+export function replaceProject({
+  tracks = [],
+  activeTrackId = null,
+  editorSettings = {},
+  playerSettings = {},
+}) {
+  clearTrackObjectUrls()
+
+  state.tracks = tracks
+  state.activeTrackId = activeTrackId || tracks[0]?.id || null
+  state.editorSettings = {
+    snapEnabled: Boolean(editorSettings.snapEnabled),
+  }
+  state.playerSettings = normalizePlayerSettings(playerSettings)
+  resetPlaybackState()
+}
+
+export function normalizeVolume(value) {
+  const number = Number(value)
+
+  if (!Number.isFinite(number)) {
+    return 1
   }
 
-  state.audio.objectUrl = null
+  return Math.min(Math.max(number, 0), 1)
+}
+
+
+export function normalizePlayerSettings(settings = {}) {
+  return {
+    volume: normalizeVolume(settings.volume),
+    linkedFragmentCrossfadeMs: normalizeMilliseconds(
+      settings.linkedFragmentCrossfadeMs,
+      250,
+      0,
+      2000,
+    ),
+    linkedFragmentOffsetMs: normalizeMilliseconds(
+      settings.linkedFragmentOffsetMs,
+      0,
+      -1000,
+      1000,
+    ),
+  }
+}
+
+export function normalizeMilliseconds(value, fallback, min, max) {
+  const number = Number(value)
+
+  if (!Number.isFinite(number)) {
+    return fallback
+  }
+
+  return Math.min(Math.max(number, min), max)
 }

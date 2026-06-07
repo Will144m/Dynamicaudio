@@ -18,8 +18,8 @@ export function resetFragmentCounters() {
 
 export function normalizePlaybackMode(playbackMode) {
   return PLAYBACK_MODES.has(playbackMode)
-  ? playbackMode
-  : DEFAULT_PLAYBACK_MODE
+    ? playbackMode
+    : DEFAULT_PLAYBACK_MODE
 }
 
 function labelExists(fragments, label) {
@@ -72,11 +72,11 @@ export function getSortedFragments(fragments) {
 export function createFragment({
   fragments,
   id = createId('fragment'),
-                               name = createFragmentName(fragments),
-                               start,
-                               end,
-                               color = getNextFragmentColor(fragments),
-                               playbackMode = DEFAULT_PLAYBACK_MODE,
+  name = createFragmentName(fragments),
+  start,
+  end,
+  color = getNextFragmentColor(fragments),
+  playbackMode = DEFAULT_PLAYBACK_MODE,
 }) {
   return {
     id,
@@ -100,23 +100,23 @@ export function createFragmentFromDrag(fragments, start, end, id = createId('fra
 export function createFragmentAtPlayhead(fragments, playhead, duration) {
   if (!duration) return null
 
-    const defaultLength = Math.min(
-      DEFAULT_FRAGMENT_LENGTH,
-      Math.max(MIN_FRAGMENT_LENGTH, duration / 5),
-    )
+  const defaultLength = Math.min(
+    DEFAULT_FRAGMENT_LENGTH,
+    Math.max(MIN_FRAGMENT_LENGTH, duration / 5),
+  )
 
-    let start = clamp(playhead, 0, Math.max(0, duration - MIN_FRAGMENT_LENGTH))
-    let end = clamp(start + defaultLength, MIN_FRAGMENT_LENGTH, duration)
+  let start = clamp(playhead, 0, Math.max(0, duration - MIN_FRAGMENT_LENGTH))
+  let end = clamp(start + defaultLength, MIN_FRAGMENT_LENGTH, duration)
 
-    if (end - start < MIN_FRAGMENT_LENGTH) {
-      start = Math.max(0, end - MIN_FRAGMENT_LENGTH)
-    }
+  if (end - start < MIN_FRAGMENT_LENGTH) {
+    start = Math.max(0, end - MIN_FRAGMENT_LENGTH)
+  }
 
-    return createFragment({
-      fragments,
-      start,
-      end,
-    })
+  return createFragment({
+    fragments,
+    start,
+    end,
+  })
 }
 
 export function updateFragment(fragments, id, patch) {
@@ -124,13 +124,13 @@ export function updateFragment(fragments, id, patch) {
 
   if (!fragment) return null
 
-    Object.assign(fragment, patch)
+  Object.assign(fragment, patch)
 
-    if (patch.playbackMode !== undefined) {
-      fragment.playbackMode = normalizePlaybackMode(patch.playbackMode)
-    }
+  if (patch.playbackMode !== undefined) {
+    fragment.playbackMode = normalizePlaybackMode(patch.playbackMode)
+  }
 
-    return fragment
+  return fragment
 }
 
 export function deleteFragment(fragments, id) {
@@ -138,29 +138,36 @@ export function deleteFragment(fragments, id) {
 
   if (index === -1) return null
 
-    const [deletedFragment] = fragments.splice(index, 1)
+  const [deletedFragment] = fragments.splice(index, 1)
 
-    return deletedFragment
+  return deletedFragment
 }
 
 export function clampFragmentsToDuration(fragments, duration) {
   return fragments
-  .map((fragment, index) => {
-    const start = clamp(Number(fragment.start), 0, Math.max(0, duration - MIN_FRAGMENT_LENGTH))
-    const end = clamp(Number(fragment.end), start + MIN_FRAGMENT_LENGTH, duration)
+    .map((fragment, index) => {
+      const rawStart = Number(fragment.start)
+      const rawEnd = Number(fragment.end)
 
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-      return null
-    }
+      if (!Number.isFinite(rawStart) || !Number.isFinite(rawEnd)) {
+        return null
+      }
 
-    return {
-      id: String(fragment.id || createId('fragment')),
-       name: String(fragment.name || `Fragment ${index + 1}`),
-       start,
-       end,
-       color: String(fragment.color || FRAGMENT_COLORS[index % FRAGMENT_COLORS.length]),
-       playbackMode: normalizePlaybackMode(fragment.playbackMode),
-    }
-  })
-  .filter(Boolean)
+      const start = clamp(rawStart, 0, Math.max(0, duration - MIN_FRAGMENT_LENGTH))
+      const end = clamp(rawEnd, start + MIN_FRAGMENT_LENGTH, duration)
+
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+        return null
+      }
+
+      return {
+        id: String(fragment.id || createId('fragment')),
+        name: String(fragment.name || `Fragment ${index + 1}`),
+        start,
+        end,
+        color: String(fragment.color || FRAGMENT_COLORS[index % FRAGMENT_COLORS.length]),
+        playbackMode: normalizePlaybackMode(fragment.playbackMode),
+      }
+    })
+    .filter(Boolean)
 }

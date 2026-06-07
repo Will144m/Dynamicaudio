@@ -73,6 +73,23 @@ export function createId(prefix = 'id') {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`
 }
 
+export function stripExtension(filename) {
+  return String(filename || '').replace(/\.[^/.]+$/, '')
+}
+
+export function safeFilename(filename, fallback = 'file') {
+  const cleaned = String(filename || fallback)
+    .trim()
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+
+  return cleaned || fallback
+}
+
+export function getExtension(filename) {
+  const match = String(filename || '').match(/\.[^/.]+$/)
+  return match ? match[0] : ''
+}
+
 export function downloadBlob(filename, blob) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')

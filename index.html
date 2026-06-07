@@ -13,8 +13,8 @@
           <div>
             <h1>Dynamic Audio demo</h1>
             <p class="intro">
-              Upload an audio file, create fragments, then export a project bundle
-              containing both the audio and fragment data.
+              Add tracks, create fragments, then export a project bundle containing
+              the audio files and fragment data.
             </p>
           </div>
 
@@ -30,8 +30,8 @@
 
         <div class="toolbar">
           <label class="upload">
-            <span>Choose audio</span>
-            <input id="audioFile" type="file" accept="audio/*" />
+            <span>Add track</span>
+            <input id="trackFile" type="file" accept="audio/*" multiple />
           </label>
 
           <button id="playPauseBtn" type="button" disabled>Play</button>
@@ -39,14 +39,94 @@
           <button id="loopToggleBtn" type="button" disabled>
             Loop current fragment: Off
           </button>
+
+          <label class="volume-control">
+            <span>Volume</span>
+            <input id="volumeInput" type="range" min="0" max="100" value="100" />
+          </label>
+
+          <label class="number-control player-only">
+            <span>Linked fade ms</span>
+            <input id="linkedCrossfadeInput" type="number" min="0" max="2000" step="25" value="250" />
+          </label>
+
+          <label class="number-control player-only">
+            <span>Linked offset ms</span>
+            <input id="linkedOffsetInput" type="number" min="-1000" max="1000" step="10" value="0" />
+          </label>
+
+          <label class="snap-control editor-only">
+            <input id="snapToggleInput" type="checkbox" />
+            <span>Snap fragments</span>
+          </label>
         </div>
 
         <div class="status-row">
-          <p id="status">Load an audio file or import a project bundle to begin.</p>
+          <p id="status">Add a track or import a project bundle to begin.</p>
           <p id="time">00:00.00 / 00:00.00</p>
         </div>
 
+        <section class="tracks-section">
+          <div class="tracks-header">
+            <h2>Tracks</h2>
+            <div class="project-actions">
+              <button id="deleteTrackBtn" class="danger-action" type="button" disabled>
+                Delete selected track
+              </button>
+
+              <button id="exportProjectBtn" type="button" disabled>
+                Export project bundle
+              </button>
+
+              <label class="project-import">
+                <span>Import project bundle</span>
+                <input
+                  id="projectFile"
+                  type="file"
+                  accept=".dynamic-audio.zip,.zip,application/zip,application/x-zip-compressed"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div id="tracks" class="tracks"></div>
+        </section>
+
         <div id="waveform" aria-label="Audio waveform"></div>
+
+        <section id="playerPanel" class="player-panel player-only">
+          <div class="player-panel-header">
+            <div>
+              <h2>Player queue</h2>
+              <p class="hint">Queue follows the active track. Next waits for the current loop to finish.</p>
+            </div>
+
+            <div class="player-actions">
+              <button id="startQueueBtn" type="button" disabled>Start queue</button>
+              <button id="nextQueueBtn" type="button" disabled>Queue next</button>
+              <button id="jumpQueueBtn" type="button" disabled>Skip now</button>
+              <button id="restartQueueBtn" type="button" disabled>Restart</button>
+              <button id="resetQueueBtn" type="button" disabled>Reset order</button>
+            </div>
+          </div>
+
+          <div class="player-status-grid">
+            <div>
+              <span>Current</span>
+              <strong id="playerCurrent">--</strong>
+            </div>
+            <div>
+              <span>Queued next</span>
+              <strong id="playerQueued">--</strong>
+            </div>
+          </div>
+
+          <div id="playerQueue" class="player-queue"></div>
+
+          <div id="playerAvailableQueue" class="available-queue"></div>
+
+          <div id="playerLinkedTargets" class="linked-targets"></div>
+        </section>
 
         <section id="fragmentDetails" class="fragment-details editor-only is-disabled">
           <div class="fragment-details-header">
@@ -99,6 +179,13 @@
                 <span>Loop fragment</span>
               </span>
             </label>
+
+            <label class="fragment-link-control">
+              <span>Linked target</span>
+              <select id="fragmentLinkSelect" disabled>
+                <option value="">No linked fragment</option>
+              </select>
+            </label>
           </div>
         </section>
 
@@ -114,19 +201,6 @@
               <button id="deleteFragmentBtn" class="editor-only" type="button" disabled>
                 Delete selected
               </button>
-
-              <button id="exportProjectBtn" type="button" disabled>
-                Export project bundle
-              </button>
-
-              <label class="project-import">
-                <span>Import project bundle</span>
-                <input
-                  id="projectFile"
-                  type="file"
-                  accept=".dynamic-audio.zip,.zip,application/zip,application/x-zip-compressed"
-                />
-              </label>
             </div>
           </div>
 

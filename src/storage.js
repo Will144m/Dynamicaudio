@@ -1,8 +1,9 @@
 import { FRAGMENT_COLORS } from './config.js'
 import { normalizePlaybackMode } from './fragments.js'
-import { downloadBlob } from './utils.js'
+import { getAudioPathForTrack } from './tracks.js'
+import { createId, downloadBlob, getExtension, safeFilename, stripExtension } from './utils.js'
 
-const PROJECT_VERSION = 3
+const PROJECT_VERSION = 4
 const PROJECT_JSON_PATH = 'project.json'
 const AUDIO_FOLDER = 'audio'
 
@@ -14,73 +15,96 @@ function getJSZip() {
   return globalThis.JSZip
 }
 
-function stripExtension(filename) {
-  return filename.replace(/\.[^/.]+$/, '')
-}
-
-function getExtension(filename) {
-  const match = filename.match(/\.[^/.]+$/)
-  return match ? match[0] : ''
-}
-
-function safeFilename(filename, fallback = 'audio-file') {
-  const cleaned = String(filename || fallback)
-  .trim()
-  .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
-
-  return cleaned || fallback
-}
-
-function getBundleFilename(audioFileName) {
-  const baseName = audioFileName
-  ? stripExtension(safeFilename(audioFileName))
-  : 'dynamic-audio-project'
+function getBundleFilename(state) {
+  const firstTrackName = state.tracks[0]?.name || state.tracks[0]?.audio?.fileName
+  const baseName = firstTrackName
+    ? stripExtension(safeFilename(firstTrackName))
+    : 'dynamic-audio-project'
 
   return `${baseName}.dynamic-audio.zip`
 }
 
-function getAudioPath(audioFileName) {
-  return `${AUDIO_FOLDER}/${safeFilename(audioFileName, 'audio-file')}`
-}
-
-export function buildProjectDocument(state, { audioPath }) {
+export function buildProjectDocument(state, audioPathByTrackId) {
   return {
     version: PROJECT_VERSION,
     createdAt: new Date().toISOString(),
-
-    audio: {
-      path: audioPath,
-      name: state.audio.fileName,
-      type: state.audio.fileType,
-      size: state.audio.fileSize,
-      lastModified: state.audio.lastModified,
-      duration: state.audio.duration,
+    activeTrackId: state.activeTrackId,
+    editorSettings: {
+      snapEnabled: Boolean(state.editorSettings?.snapEnabled),
+    },
+    playerSettings: {
+      volume: Number.isFinite(Number(state.playerSettings?.volume))
+        ? Number(state.playerSettings.volume)
+        : 1,
+      linkedFragmentCrossfadeMs: Number.isFinite(Number(state.playerSettings?.linkedFragmentCrossfadeMs))
+        ? Number(state.playerSettings.linkedFragmentCrossfadeMs)
+        : 250,
+      linkedFragmentOffsetMs: Number.isFinite(Number(state.playerSettings?.linkedFragmentOffsetMs))
+        ? Number(state.playerSettings.linkedFragmentOffsetMs)
+        : 0,
     },
 
-    fragments: state.fragments.map((fragment) => ({
-      id: fragment.id,
-      name: fragment.name,
-      start: fragment.start,
-      end: fragment.end,
-      color: fragment.color,
-      playbackMode: normalizePlaybackMode(fragment.playbackMode),
+    tracks: state.tracks.map((track) => ({
+      id: track.id,
+      name: track.name,
+      audio: {
+        path: audioPathByTrackId.get(track.id),
+        name: track.audio.fileName,
+        type: track.audio.fileType,
+        size: track.audio.fileSize,
+        lastModified: track.audio.lastModified,
+        duration: track.audio.duration,
+      },
+      fragments: track.fragments.map((fragment) => ({
+        id: fragment.id,
+        name: fragment.name,
+        start: fragment.start,
+        end: fragment.end,
+        color: fragment.color,
+        playbackMode: normalizePlaybackMode(fragment.playbackMode),
+      })),
+      fragmentLinks: (track.fragmentLinks || []).map((link) => ({
+        id: link.id,
+        fromFragmentId: link.fromFragmentId,
+        toFragmentId: link.toFragmentId,
+        mode: link.mode || 'relative',
+        crossfadeMs: Number.isFinite(Number(link.crossfadeMs))
+          ? Number(link.crossfadeMs)
+          : 250,
+      })),
+      queue: (track.queue || []).map((item) => ({
+        fragmentId: item.fragmentId,
+      })),
+      queueMode: track.queueMode === 'manual' ? 'manual' : 'auto',
     })),
+
   }
 }
 
 export async function downloadProjectBundle(state) {
-  if (!state.audio.file) {
-    throw new Error('No original audio file is available for this project.')
+  if (!state.tracks.length) {
+    throw new Error('No tracks are available for this project.')
+  }
+
+  const missingAudioTrack = state.tracks.find((track) => !track.audio?.file)
+
+  if (missingAudioTrack) {
+    throw new Error(`Track ${missingAudioTrack.name || missingAudioTrack.id} has no audio file.`)
   }
 
   const JSZip = getJSZip()
   const zip = new JSZip()
+  const audioPathByTrackId = new Map()
 
-  const audioPath = getAudioPath(state.audio.fileName)
-  const project = buildProjectDocument(state, { audioPath })
+  for (const track of state.tracks) {
+    const audioPath = getAudioPathForTrack(track)
+    audioPathByTrackId.set(track.id, audioPath)
+    zip.file(audioPath, track.audio.file)
+  }
+
+  const project = buildProjectDocument(state, audioPathByTrackId)
 
   zip.file(PROJECT_JSON_PATH, JSON.stringify(project, null, 2))
-  zip.file(audioPath, state.audio.file)
 
   const blob = await zip.generateAsync({
     type: 'blob',
@@ -90,7 +114,7 @@ export async function downloadProjectBundle(state) {
     },
   })
 
-  downloadBlob(getBundleFilename(state.audio.fileName), blob)
+  downloadBlob(getBundleFilename(state), blob)
 }
 
 export async function readProjectBundle(file) {
@@ -108,32 +132,38 @@ export async function readProjectBundle(file) {
   }
 
   const projectText = await projectEntry.async('text')
-  const project = validateProjectDocument(JSON.parse(projectText))
+  const rawProject = JSON.parse(projectText)
+  const project = validateProjectDocument(rawProject)
+  const audioFilesByTrackId = new Map()
 
-  const audioEntry = findAudioEntry(zip, project)
+  for (const track of project.tracks) {
+    const audioEntry = findAudioEntry(zip, track)
 
-  if (!audioEntry) {
-    throw new Error('Project bundle does not contain the associated audio file.')
+    if (!audioEntry) {
+      throw new Error(`Project bundle does not contain audio for track ${track.name}.`)
+    }
+
+    const audioBlob = await audioEntry.async('blob')
+    const audioName = track.audio.name || audioEntry.name.split('/').pop() || 'audio-file'
+    const audioType = track.audio.type || audioBlob.type || guessAudioType(audioName)
+
+    const audioFile = new File([audioBlob], audioName, {
+      type: audioType,
+      lastModified: track.audio.lastModified || Date.now(),
+    })
+
+    audioFilesByTrackId.set(track.id, audioFile)
   }
-
-  const audioBlob = await audioEntry.async('blob')
-  const audioName = project.audio.name || audioEntry.name.split('/').pop() || 'audio-file'
-  const audioType = project.audio.type || audioBlob.type || guessAudioType(audioName)
-
-  const audioFile = new File([audioBlob], audioName, {
-    type: audioType,
-    lastModified: project.audio.lastModified || Date.now(),
-  })
 
   return {
     project,
-    audioFile,
+    audioFilesByTrackId,
   }
 }
 
-function findAudioEntry(zip, project) {
-  if (project.audio.path) {
-    const exactEntry = zip.file(project.audio.path)
+function findAudioEntry(zip, track) {
+  if (track.audio.path) {
+    const exactEntry = zip.file(track.audio.path)
 
     if (exactEntry) {
       return exactEntry
@@ -143,18 +173,28 @@ function findAudioEntry(zip, project) {
   const audioEntries = Object.values(zip.files).filter((entry) => {
     if (entry.dir) return false
 
-      const name = entry.name.toLowerCase()
+    const name = entry.name.toLowerCase()
 
-      return (
-        name.startsWith(`${AUDIO_FOLDER}/`) ||
-        name.endsWith('.mp3') ||
-        name.endsWith('.wav') ||
-        name.endsWith('.ogg') ||
-        name.endsWith('.m4a') ||
-        name.endsWith('.flac') ||
-        name.endsWith('.aac')
-      )
+    return (
+      name.startsWith(`${AUDIO_FOLDER}/`) ||
+      name.endsWith('.mp3') ||
+      name.endsWith('.wav') ||
+      name.endsWith('.ogg') ||
+      name.endsWith('.m4a') ||
+      name.endsWith('.flac') ||
+      name.endsWith('.aac')
+    )
   })
+
+  if (track.audio.name) {
+    const matchingName = audioEntries.find((entry) => {
+      return entry.name.split('/').pop() === track.audio.name
+    })
+
+    if (matchingName) {
+      return matchingName
+    }
+  }
 
   return audioEntries[0] || null
 }
@@ -163,13 +203,13 @@ function guessAudioType(filename) {
   const extension = getExtension(filename).toLowerCase()
 
   if (extension === '.mp3') return 'audio/mpeg'
-    if (extension === '.wav') return 'audio/wav'
-      if (extension === '.ogg') return 'audio/ogg'
-        if (extension === '.m4a') return 'audio/mp4'
-          if (extension === '.flac') return 'audio/flac'
-            if (extension === '.aac') return 'audio/aac'
+  if (extension === '.wav') return 'audio/wav'
+  if (extension === '.ogg') return 'audio/ogg'
+  if (extension === '.m4a') return 'audio/mp4'
+  if (extension === '.flac') return 'audio/flac'
+  if (extension === '.aac') return 'audio/aac'
 
-              return 'audio/*'
+  return 'audio/*'
 }
 
 function validateProjectDocument(project) {
@@ -177,43 +217,207 @@ function validateProjectDocument(project) {
     throw new Error('Project file is not a valid JSON object.')
   }
 
-  if (!Array.isArray(project.fragments)) {
-    throw new Error('Project file does not contain a fragments array.')
+  if (Array.isArray(project.tracks)) {
+    return validateV4Project(project)
   }
 
-  return {
-    version: Number(project.version || 1),
-    createdAt: String(project.createdAt || ''),
-    audio: {
-      path: String(project.audio?.path || ''),
-      name: String(project.audio?.name || ''),
-      type: String(project.audio?.type || ''),
-      size: Number(project.audio?.size || 0),
-      lastModified: Number(project.audio?.lastModified || 0),
-      duration: Number(project.audio?.duration || 0),
-    },
-    fragments: project.fragments
-    .map((fragment, index) => normalizeImportedFragment(fragment, index))
-    .filter(Boolean),
+  if (project.audio && Array.isArray(project.fragments)) {
+    return migrateSingleTrackProject(project)
   }
+
+  throw new Error('Project file does not contain tracks.')
+}
+
+function validateV4Project(project) {
+  const tracks = project.tracks
+    .map((track, index) => normalizeImportedTrack(track, index))
+    .filter(Boolean)
+
+  if (!tracks.length) {
+    throw new Error('Project file does not contain any valid tracks.')
+  }
+
+  const trackIds = new Set(tracks.map((track) => track.id))
+
+  return {
+    version: Number(project.version || PROJECT_VERSION),
+    createdAt: String(project.createdAt || ''),
+    activeTrackId: trackIds.has(project.activeTrackId)
+      ? project.activeTrackId
+      : tracks[0].id,
+    tracks,
+    editorSettings: normalizeImportedEditorSettings(project.editorSettings),
+    playerSettings: normalizeImportedPlayerSettings(project.playerSettings),
+  }
+}
+
+function migrateSingleTrackProject(project) {
+  const trackId = createId('track')
+  const audioName = String(project.audio?.name || 'Imported track')
+
+  return {
+    version: PROJECT_VERSION,
+    createdAt: String(project.createdAt || ''),
+    activeTrackId: trackId,
+    tracks: [
+      {
+        id: trackId,
+        name: stripExtension(audioName) || 'Imported track',
+        audio: {
+          path: String(project.audio?.path || ''),
+          name: audioName,
+          type: String(project.audio?.type || ''),
+          size: Number(project.audio?.size || 0),
+          lastModified: Number(project.audio?.lastModified || 0),
+          duration: Number(project.audio?.duration || 0),
+        },
+        fragments: project.fragments
+          .map((fragment, index) => normalizeImportedFragment(fragment, index))
+          .filter(Boolean),
+        fragmentLinks: [],
+        queue: project.fragments
+          .filter((fragment) => fragment?.id)
+          .map((fragment) => ({ fragmentId: String(fragment.id) })),
+        queueMode: 'auto',
+      },
+    ],
+    editorSettings: normalizeImportedEditorSettings(project.editorSettings),
+    playerSettings: normalizeImportedPlayerSettings(project.playerSettings),
+  }
+}
+
+function normalizeImportedEditorSettings(settings = {}) {
+  return {
+    snapEnabled: Boolean(settings?.snapEnabled),
+  }
+}
+
+function normalizeImportedPlayerSettings(settings = {}) {
+  const volume = Number(settings?.volume)
+  const linkedFragmentCrossfadeMs = Number(settings?.linkedFragmentCrossfadeMs)
+  const linkedFragmentOffsetMs = Number(settings?.linkedFragmentOffsetMs)
+
+  return {
+    volume: Number.isFinite(volume)
+      ? Math.min(Math.max(volume, 0), 1)
+      : 1,
+    linkedFragmentCrossfadeMs: Number.isFinite(linkedFragmentCrossfadeMs)
+      ? Math.min(Math.max(linkedFragmentCrossfadeMs, 0), 2000)
+      : 250,
+    linkedFragmentOffsetMs: Number.isFinite(linkedFragmentOffsetMs)
+      ? Math.min(Math.max(linkedFragmentOffsetMs, -1000), 1000)
+      : 0,
+  }
+}
+
+function normalizeImportedTrack(track, index) {
+  if (!track || typeof track !== 'object') return null
+
+  const id = String(track.id || `track_${index + 1}`)
+  const audioName = String(track.audio?.name || `track_${index + 1}`)
+  const fragments = Array.isArray(track.fragments)
+    ? track.fragments
+      .map((fragment, fragmentIndex) => normalizeImportedFragment(fragment, fragmentIndex))
+      .filter(Boolean)
+    : []
+
+  const fragmentIds = new Set(fragments.map((fragment) => fragment.id))
+  const queueMode = track.queueMode === 'manual' ? 'manual' : 'auto'
+  let queue
+
+  if (queueMode === 'manual' && Array.isArray(track.queue)) {
+    const usedIds = new Set()
+
+    queue = track.queue
+      .map((item) => ({ fragmentId: String(item?.fragmentId || '') }))
+      .filter((item) => {
+        if (!fragmentIds.has(item.fragmentId) || usedIds.has(item.fragmentId)) {
+          return false
+        }
+
+        usedIds.add(item.fragmentId)
+        return true
+      })
+  } else {
+    queue = [...fragments]
+      .sort((a, b) => {
+        if (a.start !== b.start) return a.start - b.start
+        return a.end - b.end
+      })
+      .map((fragment) => ({ fragmentId: fragment.id }))
+  }
+
+  const fragmentLinks = normalizeImportedFragmentLinks(track.fragmentLinks, fragmentIds)
+
+  return {
+    id,
+    name: String(track.name || stripExtension(audioName) || `Track ${index + 1}`),
+    audio: {
+      path: String(track.audio?.path || ''),
+      name: audioName,
+      type: String(track.audio?.type || ''),
+      size: Number(track.audio?.size || 0),
+      lastModified: Number(track.audio?.lastModified || 0),
+      duration: Number(track.audio?.duration || 0),
+    },
+    fragments,
+    fragmentLinks,
+    queue,
+    queueMode,
+  }
+}
+
+function normalizeImportedFragmentLinks(fragmentLinks, fragmentIds) {
+  if (!Array.isArray(fragmentLinks)) return []
+
+  const usedFromIds = new Set()
+  const normalizedLinks = []
+
+  for (const link of fragmentLinks) {
+    const fromFragmentId = String(link?.fromFragmentId || '')
+    const toFragmentId = String(link?.toFragmentId || '')
+
+    if (
+      !fragmentIds.has(fromFragmentId) ||
+      !fragmentIds.has(toFragmentId) ||
+      fromFragmentId === toFragmentId ||
+      usedFromIds.has(fromFragmentId)
+    ) {
+      continue
+    }
+
+    normalizedLinks.push({
+      id: String(link.id || createId('fragment_link')),
+      fromFragmentId,
+      toFragmentId,
+      mode: 'relative',
+      crossfadeMs: Number.isFinite(Number(link.crossfadeMs))
+        ? Number(link.crossfadeMs)
+        : 250,
+    })
+
+    usedFromIds.add(fromFragmentId)
+  }
+
+  return normalizedLinks
 }
 
 function normalizeImportedFragment(fragment, index) {
   if (!fragment || typeof fragment !== 'object') return null
 
-    const start = Number(fragment.start)
-    const end = Number(fragment.end)
+  const start = Number(fragment.start)
+  const end = Number(fragment.end)
 
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-      return null
-    }
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return null
+  }
 
-    return {
-      id: String(fragment.id || `imported_fragment_${index + 1}`),
-      name: String(fragment.name || `Fragment ${index + 1}`),
-      start,
-      end,
-      color: String(fragment.color || FRAGMENT_COLORS[index % FRAGMENT_COLORS.length]),
-      playbackMode: normalizePlaybackMode(fragment.playbackMode),
-    }
+  return {
+    id: String(fragment.id || `imported_fragment_${index + 1}`),
+    name: String(fragment.name || `Fragment ${index + 1}`),
+    start,
+    end,
+    color: String(fragment.color || FRAGMENT_COLORS[index % FRAGMENT_COLORS.length]),
+    playbackMode: normalizePlaybackMode(fragment.playbackMode),
+  }
 }
