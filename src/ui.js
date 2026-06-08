@@ -16,6 +16,7 @@ export function getElements() {
     addFragmentBtn: document.getElementById('addFragmentBtn'),
     deleteFragmentBtn: document.getElementById('deleteFragmentBtn'),
     exportProjectBtn: document.getElementById('exportProjectBtn'),
+    exportLocalProjectBtn: document.getElementById('exportLocalProjectBtn'),
     deleteTrackBtn: document.getElementById('deleteTrackBtn'),
     editorModeBtn: document.getElementById('editorModeBtn'),
     playerModeBtn: document.getElementById('playerModeBtn'),
@@ -43,6 +44,10 @@ export function getElements() {
     fragmentLengthValue: document.getElementById('fragmentLengthValue'),
     fragmentLoopModeInput: document.getElementById('fragmentLoopModeInput'),
     fragmentLinkSelect: document.getElementById('fragmentLinkSelect'),
+    setStartToPlayheadBtn: document.getElementById('setStartToPlayheadBtn'),
+    setEndToPlayheadBtn: document.getElementById('setEndToPlayheadBtn'),
+    nudgeFragmentLeftBtn: document.getElementById('nudgeFragmentLeftBtn'),
+    nudgeFragmentRightBtn: document.getElementById('nudgeFragmentRightBtn'),
   }
 }
 
@@ -106,7 +111,23 @@ export function updateControls(elements, state) {
 
   elements.addFragmentBtn.disabled = !hasLoadedAudio || !isEditor
   elements.deleteFragmentBtn.disabled = !state.selectedFragmentId || !isEditor
+
+  for (const button of [
+    elements.setStartToPlayheadBtn,
+    elements.setEndToPlayheadBtn,
+    elements.nudgeFragmentLeftBtn,
+    elements.nudgeFragmentRightBtn,
+  ]) {
+    if (button) {
+      button.disabled = !state.selectedFragmentId || !hasLoadedAudio || !isEditor
+    }
+  }
+
   elements.exportProjectBtn.disabled = state.tracks.length === 0
+
+  if (elements.exportLocalProjectBtn) {
+    elements.exportLocalProjectBtn.disabled = state.tracks.length === 0
+  }
 
   if (elements.deleteTrackBtn) {
     elements.deleteTrackBtn.disabled = !hasActiveTrack
@@ -128,6 +149,15 @@ export function updateControls(elements, state) {
     elements.loopToggleBtn.disabled = true
     elements.addFragmentBtn.disabled = true
     elements.deleteFragmentBtn.disabled = true
+
+    for (const button of [
+      elements.setStartToPlayheadBtn,
+      elements.setEndToPlayheadBtn,
+      elements.nudgeFragmentLeftBtn,
+      elements.nudgeFragmentRightBtn,
+    ]) {
+      if (button) button.disabled = true
+    }
   }
 }
 

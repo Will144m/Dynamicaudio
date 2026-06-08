@@ -31,7 +31,7 @@ import {
   setManagedPlaybackVolume,
 } from './playerRuntime.js'
 import { clearTrackObjectUrls, normalizeMilliseconds, normalizeVolume, replaceProject, resetPlaybackState, state } from './state.js'
-import { downloadProjectBundle, readProjectBundle } from './storage.js'
+import { downloadProjectBundle, exportProjectBundleLocally, readProjectBundle } from './storage.js'
 import {
   createTrackFromFile,
   createTrackFromImportedData,
@@ -892,6 +892,88 @@ function previewFragmentDetailsLength() {
   updateFragmentDetailsLength(elements, end - start)
 }
 
+
+function commitSelectedFragmentTiming(activeTrack, fragment, start, end, statusMessage) {
+  const duration = Number(activeTrack?.audio?.duration || 0)
+  const safeStart = Math.max(0, Math.min(start, Math.max(0, duration - MIN_FRAGMENT_LENGTH)))
+  const safeEnd = Math.max(safeStart + MIN_FRAGMENT_LENGTH, Math.min(end, duration || end))
+
+  const updatedFragment = updateFragment(activeTrack.fragments, fragment.id, {
+    start: safeStart,
+    end: safeEnd,
+  })
+
+  if (!updatedFragment) return
+
+  state.selectedFragmentId = updatedFragment.id
+  normalizeFragmentLinks(activeTrack)
+  normalizeTrackQueue(activeTrack)
+  resetPlayerRuntime(state)
+  waveform.renderFragments(activeTrack.fragments)
+  refreshUi()
+  setStatus(elements, statusMessage || `Updated fragment: ${updatedFragment.name} (${formatRange(updatedFragment)}).`)
+}
+
+function setSelectedFragmentBoundary(boundary) {
+  const activeTrack = getActiveTrack(state)
+  const fragment = getSelectedFragment()
+
+  if (!activeTrack || !fragment) return
+
+  if (!saveSelectedFragmentDetails({ syncDetails: true })) {
+    return
+  }
+
+  const playhead = waveform.getCurrentTime()
+
+  if (boundary === 'start') {
+    const start = Math.min(Math.max(playhead, 0), fragment.end - MIN_FRAGMENT_LENGTH)
+    commitSelectedFragmentTiming(
+      activeTrack,
+      fragment,
+      start,
+      fragment.end,
+      `Set ${fragment.name} start to playhead.`,
+    )
+    return
+  }
+
+  const duration = Number(activeTrack.audio?.duration || 0)
+  const end = Math.max(fragment.start + MIN_FRAGMENT_LENGTH, Math.min(playhead, duration || playhead))
+
+  commitSelectedFragmentTiming(
+    activeTrack,
+    fragment,
+    fragment.start,
+    end,
+    `Set ${fragment.name} end to playhead.`,
+  )
+}
+
+function nudgeSelectedFragment(deltaSeconds) {
+  const activeTrack = getActiveTrack(state)
+  const fragment = getSelectedFragment()
+
+  if (!activeTrack || !fragment) return
+
+  if (!saveSelectedFragmentDetails({ syncDetails: true })) {
+    return
+  }
+
+  const duration = Number(activeTrack.audio?.duration || 0)
+  const length = Math.max(MIN_FRAGMENT_LENGTH, fragment.end - fragment.start)
+  const start = Math.max(0, Math.min(fragment.start + deltaSeconds, Math.max(0, duration - length)))
+  const end = start + length
+
+  commitSelectedFragmentTiming(
+    activeTrack,
+    fragment,
+    start,
+    end,
+    `Moved ${fragment.name} ${deltaSeconds < 0 ? 'left' : 'right'} by ${Math.abs(deltaSeconds).toFixed(2)}s.`,
+  )
+}
+
 async function exportProjectBundle() {
   if (!saveSelectedFragmentDetails({ syncDetails: true })) {
     return
@@ -903,15 +985,43 @@ async function exportProjectBundle() {
       normalizeTrackQueue(track)
     }
 
-    await downloadProjectBundle(state)
+    const exportResult = await downloadProjectBundle(state)
 
     setStatus(
       elements,
-      `Exported project bundle with ${state.tracks.length} tracks.`,
+      exportResult?.native
+        ? `Exported project bundle with ${state.tracks.length} tracks. Share/save sheet opened for ${exportResult.filename}.`
+        : `Exported project bundle with ${state.tracks.length} tracks.`,
     )
   } catch (error) {
     console.error(error)
     setStatus(elements, `Could not export project bundle: ${error.message}`)
+  }
+}
+
+
+async function exportProjectBundleLocalOnly() {
+  if (!saveSelectedFragmentDetails({ syncDetails: true })) {
+    return
+  }
+
+  try {
+    for (const track of state.tracks) {
+      normalizeFragmentLinks(track)
+      normalizeTrackQueue(track)
+    }
+
+    const exportResult = await exportProjectBundleLocally(state)
+
+    setStatus(
+      elements,
+      exportResult?.native
+        ? `Saved project bundle locally: ${exportResult.filename}. URI: ${exportResult.uri}`
+        : `Exported project bundle locally: ${exportResult.filename}.`,
+    )
+  } catch (error) {
+    console.error(error)
+    setStatus(elements, `Could not export project bundle locally: ${error.message}`)
   }
 }
 
@@ -1260,8 +1370,27 @@ elements.editorModeBtn.addEventListener('click', () => setMode('editor'))
 elements.playerModeBtn.addEventListener('click', () => setMode('player'))
 elements.exportProjectBtn.addEventListener('click', exportProjectBundle)
 
+if (elements.exportLocalProjectBtn) {
+  elements.exportLocalProjectBtn.addEventListener('click', exportProjectBundleLocalOnly)
+}
+
 if (elements.deleteTrackBtn) {
   elements.deleteTrackBtn.addEventListener('click', deleteActiveTrack)
+}
+if (elements.setStartToPlayheadBtn) {
+  elements.setStartToPlayheadBtn.addEventListener('click', () => setSelectedFragmentBoundary('start'))
+}
+
+if (elements.setEndToPlayheadBtn) {
+  elements.setEndToPlayheadBtn.addEventListener('click', () => setSelectedFragmentBoundary('end'))
+}
+
+if (elements.nudgeFragmentLeftBtn) {
+  elements.nudgeFragmentLeftBtn.addEventListener('click', () => nudgeSelectedFragment(-0.1))
+}
+
+if (elements.nudgeFragmentRightBtn) {
+  elements.nudgeFragmentRightBtn.addEventListener('click', () => nudgeSelectedFragment(0.1))
 }
 elements.startQueueBtn.addEventListener('click', startPlayerQueue)
 elements.nextQueueBtn.addEventListener('click', requestPlayerNext)

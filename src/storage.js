@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+
 import { FRAGMENT_COLORS } from './config.js'
 import { normalizePlaybackMode } from './fragments.js'
 import { getAudioPathForTrack } from './tracks.js'
@@ -10,6 +11,92 @@ const AUDIO_FOLDER = 'audio'
 
 function getJSZip() {
   return JSZip
+}
+
+function isNativeCapacitor() {
+  const capacitor = globalThis.Capacitor
+
+  if (!capacitor) return false
+
+  if (typeof capacitor.isNativePlatform === 'function') {
+    return capacitor.isNativePlatform()
+  }
+
+  if (typeof capacitor.getPlatform === 'function') {
+    return ['android', 'ios'].includes(capacitor.getPlatform())
+  }
+
+  return false
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      const [, base64 = ''] = result.split(',')
+      resolve(base64)
+    }
+
+    reader.onerror = () => {
+      reject(reader.error || new Error('Could not read export blob.'))
+    }
+
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function writeBundleToNativeDocuments(filename, blob) {
+  const { Filesystem, Directory } = await import('@capacitor/filesystem')
+  const base64Data = await blobToBase64(blob)
+
+  const result = await Filesystem.writeFile({
+    path: filename,
+    data: base64Data,
+    directory: Directory.Documents,
+    recursive: true,
+  })
+
+  return result
+}
+
+async function saveBundleNatively(filename, blob) {
+  const [result, shareModule] = await Promise.all([
+    writeBundleToNativeDocuments(filename, blob),
+    import('@capacitor/share').catch(() => null),
+  ])
+
+  const Share = shareModule?.Share
+
+  if (Share?.share) {
+    await Share.share({
+      title: 'Export Dynamicaudio project',
+      text: 'Dynamicaudio project bundle',
+      url: result.uri,
+      dialogTitle: 'Share project bundle',
+    })
+  }
+
+  return {
+    filename,
+    native: true,
+    local: false,
+    uri: result.uri,
+    shared: Boolean(Share?.share),
+  }
+}
+
+async function saveBundleLocallyNatively(filename, blob) {
+  const result = await writeBundleToNativeDocuments(filename, blob)
+
+  return {
+    filename,
+    native: true,
+    local: true,
+    uri: result.uri,
+    shared: false,
+  }
 }
 
 function getBundleFilename(state) {
@@ -78,7 +165,7 @@ export function buildProjectDocument(state, audioPathByTrackId) {
   }
 }
 
-export async function downloadProjectBundle(state) {
+async function createProjectBundleBlob(state) {
   if (!state.tracks.length) {
     throw new Error('No tracks are available for this project.')
   }
@@ -103,15 +190,47 @@ export async function downloadProjectBundle(state) {
 
   zip.file(PROJECT_JSON_PATH, JSON.stringify(project, null, 2))
 
-  const blob = await zip.generateAsync({
+  return zip.generateAsync({
     type: 'blob',
     compression: 'DEFLATE',
     compressionOptions: {
       level: 6,
     },
   })
+}
 
-  downloadBlob(getBundleFilename(state), blob)
+export async function downloadProjectBundle(state) {
+  const blob = await createProjectBundleBlob(state)
+  const filename = getBundleFilename(state)
+
+  if (isNativeCapacitor()) {
+    return saveBundleNatively(filename, blob)
+  }
+
+  downloadBlob(filename, blob)
+
+  return {
+    filename,
+    native: false,
+    local: false,
+  }
+}
+
+export async function exportProjectBundleLocally(state) {
+  const blob = await createProjectBundleBlob(state)
+  const filename = getBundleFilename(state)
+
+  if (isNativeCapacitor()) {
+    return saveBundleLocallyNatively(filename, blob)
+  }
+
+  downloadBlob(filename, blob)
+
+  return {
+    filename,
+    native: false,
+    local: true,
+  }
 }
 
 export async function readProjectBundle(file) {

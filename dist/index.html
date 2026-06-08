@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dynamic Audio demo</title>
-    <script type="module" crossorigin src="/assets/index-B6HK3S7a.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BDoMJJ2y.css">
+    <title>Dynamicaudio</title>
+    <script type="module" crossorigin src="/assets/index-tr4TK0Jh.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DLqz8O4z.css">
   </head>
   <body data-mode="editor">
     <main class="app">
       <section class="card">
         <header class="app-header">
           <div>
-            <h1>Dynamic Audio demo</h1>
+            <h1>Dynamicaudio</h1>
             <p class="intro">
               Add tracks, create fragments, then export a project bundle containing
               the audio files and fragment data.
@@ -79,12 +79,16 @@
                 Export project bundle
               </button>
 
+              <button id="exportLocalProjectBtn" type="button" disabled>
+                Export locally
+              </button>
+
               <label class="project-import">
                 <span>Import project bundle</span>
                 <input
                   id="projectFile"
                   type="file"
-                  accept=".dynamic-audio.zip,.zip,application/zip,application/x-zip-compressed"
+                  accept=".dynamic-audio.zip,.zip,application/zip,application/x-zip-compressed,application/octet-stream,*/*"
                 />
               </label>
             </div>
@@ -187,6 +191,19 @@
                 <option value="">No linked fragment</option>
               </select>
             </label>
+          </div>
+          <div class="mobile-edit-tools editor-only">
+            <div>
+              <strong>Editing helpers</strong>
+              <span>Use these when waveform dragging is awkward or unavailable.</span>
+            </div>
+
+            <div class="mobile-edit-actions">
+              <button id="setStartToPlayheadBtn" type="button" disabled>Start = playhead</button>
+              <button id="setEndToPlayheadBtn" type="button" disabled>End = playhead</button>
+              <button id="nudgeFragmentLeftBtn" type="button" disabled>Move −0.10s</button>
+              <button id="nudgeFragmentRightBtn" type="button" disabled>Move +0.10s</button>
+            </div>
           </div>
         </section>
 

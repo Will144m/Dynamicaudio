@@ -248,6 +248,7 @@ body[data-mode="player"] .editor-only {
 
 #waveform {
   position: relative;
+  touch-action: pan-y;
   margin-top: 14px;
   background: #171717;
   border: 1px solid var(--border);
@@ -361,6 +362,49 @@ body[data-mode="player"] #waveform ::part(region) {
   width: 17px;
   height: 17px;
   accent-color: var(--accent-2);
+}
+
+.mobile-edit-tools {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(18, 18, 18, 0.42);
+}
+
+.mobile-edit-tools > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.mobile-edit-tools strong {
+  color: var(--text);
+}
+
+.mobile-edit-tools span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.mobile-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mobile-edit-actions button {
+  background: #cbd5e1;
+  color: #0f172a;
+  padding: 10px 12px;
+}
+
+@media (max-width: 640px) {
+  .mobile-edit-actions,
+  .mobile-edit-actions button {
+    width: 100%;
+  }
 }
 
 .fragments-section {
