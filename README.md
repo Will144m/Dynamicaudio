@@ -5,6 +5,7 @@ npm install
 npm run dev
 
 npm run build
+npx cap sync android
 npm run preview
 ```
 
