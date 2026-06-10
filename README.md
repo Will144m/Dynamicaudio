@@ -1,12 +1,22 @@
 # Dynamicaudio
 
+## Running the app in the browser
+
 ```bash
 npm install
 npm run dev
-
+```
+localhost:5173
+```bash
 npm run build
-npx cap sync android
 npm run preview
+```
+localhost:4173
+
+## Building for android
+```
+npx cap sync android
+npx cap open android (or open the project in android studio manually)
 ```
 
 ## Checklist
